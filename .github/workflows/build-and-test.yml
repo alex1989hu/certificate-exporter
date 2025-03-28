@@ -1,0 +1,34 @@
+name: build-and-test
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache: true
+          go-version: 1.24.1
+      - name: Check project dependencies
+        run: |
+          rm go.sum
+          go mod tidy
+          git -c color.ui=always diff --exit-code go.mod go.sum
+      - name: Check up-to-date CLI docs
+        run: |
+          go run -tags=generatedocs hack/usage.go
+          git -c color.ui=always diff --exit-code docs/
+      - name: Generate test coverage
+        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./... -race -v
+        env:
+          GOEXPERIMENT: nocoverageredesign
